@@ -1,30 +1,57 @@
-// script.js - Audio Recording Studio Functionality
+// script.js
 
-// Request access to the microphone
-navigator.mediaDevices.getUserMedia({ audio: true })
-  .then(function(stream) {
-    const mediaRecorder = new MediaRecorder(stream);
-    const audioChunks = [];
+let mediaRecorder;
+let recordedChunks = [];
 
-    mediaRecorder.ondataavailable = function(event) {
-      audioChunks.push(event.data);
-    };
+// Function to start recording
+function startRecording() {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
 
-    mediaRecorder.onstop = function() {
-      const audioBlob = new Blob(audioChunks);
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audio.play();
-    };
+        mediaRecorder.ondataavailable = event => {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+    }).catch(err => {
+        console.error('Error accessing audio devices:', err);
+    });
+}
 
-    // Start recording
-    mediaRecorder.start();
+// Function to stop recording
+function stopRecording() {
+    return new Promise(resolve => {
+        mediaRecorder.stop();
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(recordedChunks, { type: 'audio/wav' });
+            recordedChunks = [];
+            resolve(audioBlob);
+        };
+    });
+}
 
-    // Stop recording after 5 seconds
-    setTimeout(function() {
-      mediaRecorder.stop();
-    }, 5000);
-  })
-  .catch(function(err) {
-    console.log('The following error occurred: ' + err);
-  });
+// Function to play the recorded audio
+function playAudio(audioBlob) {
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    audio.play();
+}
+
+// Function to download the recorded audio
+function downloadAudio(audioBlob, filename) {
+    const url = URL.createObjectURL(audioBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// Sample usage:
+// startRecording();
+// stopRecording().then(audioBlob => {
+//     playAudio(audioBlob);
+//     downloadAudio(audioBlob, 'recording.wav');
+// });
